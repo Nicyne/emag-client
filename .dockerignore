@@ -1,0 +1,12 @@
+Dockerfile
+.dockerignore
+node_modules
+npm-debug.log
+README.md
+*.DS_Store
+.next
+.git
+.gitignore
+.github
+.docker
+LICENSE
