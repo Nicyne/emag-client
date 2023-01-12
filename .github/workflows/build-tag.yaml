@@ -31,7 +31,7 @@ jobs:
       uses: docker/login-action@v1
       with:
         registry: ${{ secrets.DOCKER_REGISTRY }}
-        username: $ACTOR
+        username: ${{ vars.ACTOR}}
         password: ${{ secrets.REGISTRY_TOKEN }}
 
     - name: Build and push
@@ -40,4 +40,4 @@ jobs:
         context: .
         platforms: linux/amd64
         push: true
-        tags: ${{ secrets.DOCKER_REGISTRY }}/$ACTOR/$IMAGE:${{ steps.vars.outputs.tag }}
+        tags: ${{ secrets.DOCKER_REGISTRY }}/${{ vars.ACTOR }}/${{ vars.IMAGE }}:${{ steps.vars.outputs.tag }}
