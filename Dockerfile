@@ -1,4 +1,4 @@
-# DEPENDENCY STEP
+# -------------------- Dependency Stage -------------------- #
 FROM alpine as deps
 WORKDIR /app
 RUN apk add --update --no-cache nodejs yarn libc6-compat
@@ -7,12 +7,12 @@ RUN apk add --update --no-cache nodejs yarn libc6-compat
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f package-lock.json ]; then yarn global add npm && npm ci; \
   elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-# BUILD STEP
+# -------------------- Build Stage -------------------- #
 FROM alpine as builder
 WORKDIR /app
 RUN apk add --update --no-cache nodejs yarn
@@ -24,11 +24,12 @@ COPY . .
 ENV NODE_ENV=production \
   NEXT_TELEMETRY_DISABLED=1
 
+# build the application and reinstall dependencies in "production mode"
 RUN yarn build && \
   rm -r node_modules && \
   yarn install --frozen-lockfile
 
-# COPY STEP
+# -------------------- Copy Stage -------------------- #
 FROM alpine as copy
 WORKDIR /app
 
@@ -37,8 +38,8 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY ./public ./public
 COPY ./next.config.js ./
 
-# PRODUCTION STEP
-FROM alpine as runner
+# -------------------- Deployment Stage -------------------- #
+FROM alpine as deploy
 WORKDIR /app
 RUN apk add --update --no-cache nodejs && \
   addgroup --system --gid 1001 nodejs && \
