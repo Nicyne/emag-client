@@ -1,8 +1,7 @@
-# DEPENDENCIES
-FROM node:lts-alpine as deps
-
-RUN apk add --no-cache libc6-compat
+# DEPENDENCY STEP
+FROM alpine as deps
 WORKDIR /app
+RUN apk add --update --no-cache nodejs yarn libc6-compat
 
 # Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
@@ -12,28 +11,29 @@ RUN \
   elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
-# 
-FROM node:lts-alpine as builder
+
+# BUILD STEP
+FROM alpine as builder
+WORKDIR /app
+RUN apk add --update --no-cache nodejs yarn
 
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN yarn build
+ENV NODE_ENV=production \
+  NEXT_TELEMETRY_DISABLED=1
 
-ENV NODE_ENV production
+RUN yarn build && \
+  rm -r node_modules && \
+  yarn install --frozen-lockfile
 
-RUN rm -rf node_modules 
-RUN yarn install --frozen-lockfile
-#
-FROM node:lts-alpine as runner
+# PRODUCTION STEP
+FROM alpine as runner
 WORKDIR /app
-
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN apk add --update --no-cache nodejs && \
+  addgroup --system --gid 1001 nodejs && \
+  adduser --system --uid 1001 nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -43,6 +43,8 @@ COPY --chown=nextjs:nodejs ./next.config.js ./
 USER nextjs
 
 EXPOSE 3000
-ENV PORT 3000
+ENV NODE_ENV=production \
+  NEXT_TELEMETRY_DISABLED=1 \
+  PORT=3000
 
 CMD ["node", "server.js"]
