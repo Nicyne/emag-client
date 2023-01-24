@@ -28,6 +28,15 @@ RUN yarn build && \
   rm -r node_modules && \
   yarn install --frozen-lockfile
 
+# COPY STEP
+FROM alpine as copy
+WORKDIR /app
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY ./public ./public
+COPY ./next.config.js ./
+
 # PRODUCTION STEP
 FROM alpine as runner
 WORKDIR /app
@@ -35,10 +44,7 @@ RUN apk add --update --no-cache nodejs && \
   addgroup --system --gid 1001 nodejs && \
   adduser --system --uid 1001 nextjs
 
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --chown=nextjs:nodejs ./public ./public
-COPY --chown=nextjs:nodejs ./next.config.js ./
+COPY --from=copy --chown=nextjs:nodejs /app/. ./
 
 USER nextjs
 
